@@ -2,7 +2,6 @@ var events = require('events')
 var spawn = require('child_process').spawn
 var fork = require('child_process').fork
 var exec = require('child_process').exec
-var ps = require('ps-tree')
 var util = require('util')
 var xtend = require('xtend')
 var os = require('os')
@@ -12,21 +11,10 @@ var kill = function(pid, sig) {
     exec('taskkill /pid ' + pid + ' /T /F')
     return
   }
-  ps(pid, function(_, pids) {
-    pids = (pids || []).map(function(item) {
-      return parseInt(item.PID, 10)
-    })
 
-    pids.push(pid)
-
-    pids.forEach(function(pid) {
-      try {
-        process.kill(pid, sig)
-      } catch (err) {
-        // do nothing
-      }
-    })
-  })
+  // We don't need ps-tree. We assume that the child process takes
+  // care of deleting it's own child process(es).
+  process.kill(pid, sig);
 }
 var defaultSleep = function (sleep) {
   sleep = Array.isArray(sleep) ? sleep : [sleep || 1000]
@@ -62,6 +50,7 @@ var Monitor = function(command, opts) {
   this.sleep = typeof opts.sleep === 'function' ? opts.sleep : defaultSleep(opts.sleep)
   this.maxRestarts = opts.maxRestarts === 0 ? 0 : opts.maxRestarts || -1
   this.kill = opts.kill === false ? false : opts.kill || 30000
+  this.killSignal = opts.killSignal || 'SIGINT';
 
   this.child = null
   this.started = null
@@ -86,7 +75,7 @@ Monitor.prototype.stop = function(cb) {
   var self = this
   var child = self.child
   var sigkill = function() {
-    kill(child.pid, 'SIGKILL')
+    kill(child.pid, this.killSignal)
     self.emit('force-kill')
   }
 
@@ -99,7 +88,7 @@ Monitor.prototype.stop = function(cb) {
     this.child.on('exit', onexit)
   }
 
-  kill(this.child.pid)
+  kill(this.child.pid, this.killSignal);
 }
 
 Monitor.prototype.start = function() {

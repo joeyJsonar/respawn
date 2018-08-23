@@ -1,6 +1,6 @@
-# respawn
+# @jsonar/respawn
 
-Spawn a process and restart it if it crashes.
+Spawn a process and restart it if it crashes. Specific for jsonar's SonarK product.
 
 ```
 npm install respawn
